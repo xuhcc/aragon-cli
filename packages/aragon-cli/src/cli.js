@@ -11,7 +11,7 @@ const {
   manifestMiddleware,
   moduleMiddleware,
 } = require('./middleware')
-const { findProjectRoot } = require('./util')
+const { findProjectRoot } = require('@aragon/cli-utils')
 const ConsoleReporter = require('@aragon/cli-utils/src/reporters/ConsoleReporter')
 
 const MIDDLEWARES = [

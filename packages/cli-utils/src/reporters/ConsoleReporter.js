@@ -1,70 +1,60 @@
 const chalk = require('chalk')
 const figures = require('figures')
 
-const ICON_MAP = {
-  debug: {
-    color: 'magenta',
-    symbol: 'pointer'
-  },
-  info: {
-    color: 'blue',
-    symbol: 'info'
-  },
-  warning: {
-    color: 'yellow',
-    symbol: 'warning'
-  },
-  error: {
-    color: 'red',
-    symbol: 'cross'
-  },
-  success: {
-    color: 'green',
-    symbol: 'tick'
-  }
-}
-
-const getIcon = name => {
-  const { color, symbol } = ICON_MAP[name]
-  return chalk[color](
-    figures[symbol]
-  )
-}
-
 module.exports = class ConsoleReporter {
-  constructor(opts = { silent: false }) {
-    this.silent = opts.silent
+  static get DEBUG_ICON() {
+    return chalk.magenta(figures.pointer)
+  } 
+  static get INFO_ICON() {
+    return chalk.blue(figures.info)
+  } 
+  static get WARNING_ICON() {
+    return chalk.yellow(figures.warning)
+  } 
+  static get ERROR_ICON() {
+    return chalk.red(figures.cross)
+  } 
+  static get SUCCESS_ICON() {
+    return chalk.green(figures.tick)
+  } 
+ 
+  constructor(options) {
+    const defaultOptions = {
+      silent: false,
+      debug: false
+    }
+    this.opts = Object.assign({}, defaultOptions, options)
   }
 
-  message (category = 'info', ...messages) {
-    if (this.silent) return
+  message (...messages) {
+    if (this.opts.silent) return
 
-    const icon = getIcon(category)
-
-    console.log(icon, ...messages)
+    console.log(...messages)
   }
 
   debug (...messages) {
-    if (global.DEBUG_MODE) this.message('debug', ...messages)
+    if (!this.opts.debug) return
+
+    this.message(DEBUG_ICON, ...messages)
   }
 
   info (...messages) {
-    this.message('info', ...messages)
+    this.message(INFO_ICON, ...messages)
   }
 
   warning (...messages) {
-    this.message('warning', ...messages)
+    this.message(WARNING_ICON, ...messages)
   }
 
   error (...messages) {
-    this.message('error', ...messages)
+    this.message(ERROR_ICON, ...messages)
   }
 
   success (...messages) {
-    this.message('success', ...messages)
+    this.message(SUCCESS_ICON, ...messages)
   }
 
   newLine () {
-    console.log()
+    this.message()
   }
 }

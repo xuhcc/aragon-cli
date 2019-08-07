@@ -1,33 +1,27 @@
 import TaskList from 'listr'
+import listrOpts from '@aragon/cli-utils/src/helpers/listr-options'
 //
 import {
   ensureConnection,
   getMerkleDAG,
   stringifyMerkleDAG,
-} from '../../lib/ipfs'
-import listrOpts from '@aragon/cli-utils/src/helpers/listr-options'
+} from '../lib'
 
-const startIPFS = require('./start')
+export const command = 'view <cid>'
+export const describe =
+  'Display metadata about the content, such as the size, its links, etc.'
 
-exports.command = 'view <cid>'
-exports.describe =
-  'Display metadata about the content, such as size, links, etc.'
-
-exports.builder = yargs => {
+export const builder = yargs => {
   // TODO add support for "ipfs paths", e.g: QmP49YSJVhQTySqLDFTzFZPG8atf3CLsQSPDVj3iATQkhC/arapp.json
   return yargs.positional('cid', {
     description: 'A self-describing content-addressed identifier',
   })
 }
 
-exports.task = ({ apmOptions, silent, debug, cid }) => {
+const runViewTask = ({ apmOptions, silent, debug, cid }) => {
   return new TaskList(
     [
       // TODO validation of the CID
-      {
-        title: 'Check IPFS',
-        task: () => startIPFS.task({ apmOptions }),
-      },
       {
         title: 'Connect to IPFS',
         task: async ctx => {
@@ -44,17 +38,19 @@ exports.task = ({ apmOptions, silent, debug, cid }) => {
       },
     ],
     listrOpts(silent, debug)
-  )
+  ).run()
 }
 
-exports.handler = async function({
-  reporter,
-  apm: apmOptions,
-  cid,
-  debug,
-  silent,
-}) {
-  const task = await exports.task({
+export const handler = async argv => {
+  const {
+    reporter,
+    apm: apmOptions,
+    cid,
+    debug,
+    silent,
+  } = argv
+
+  const ctx = await runViewTask({
     reporter,
     apmOptions,
     cid,
@@ -62,6 +58,5 @@ exports.handler = async function({
     silent,
   })
 
-  const ctx = await task.run()
-  console.log(stringifyMerkleDAG(ctx.merkleDAG))
+  reporter.message(stringifyMerkleDAG(ctx.merkleDAG))
 }

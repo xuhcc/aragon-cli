@@ -5,23 +5,23 @@ import {
   getMerkleDAG,
   extractCIDsFromMerkleDAG,
   propagateFiles,
-} from '../../lib/ipfs'
+} from '../lib'
 import listrOpts from '@aragon/cli-utils/src/helpers/listr-options'
 
 const chalk = require('chalk')
 const startIPFS = require('./start')
 
-exports.command = 'propagate <cid>'
-exports.describe =
+export const command = 'propagate <cid>'
+export const describe =
   'Request the content and its links at several gateways, making the files more distributed within the network.'
 
-exports.builder = yargs => {
+export const builder = yargs => {
   return yargs.positional('cid', {
     description: 'A self-describing content-addressed identifier',
   })
 }
 
-exports.task = ({ apmOptions, silent, debug, cid }) => {
+const runPropagateTask = ({ apmOptions, silent, debug, cid }) => {
   return new TaskList(
     [
       {
@@ -55,24 +55,24 @@ exports.task = ({ apmOptions, silent, debug, cid }) => {
       },
     ],
     listrOpts(silent, debug)
-  )
+  ).run()
 }
 
-exports.handler = async function({
-  reporter,
-  apm: apmOptions,
-  cid,
-  debug,
-  silent,
-}) {
-  const task = await exports.task({
+export const handler = async argv => {
+  const {
+    reporter,
+    apm: apmOptions, // TODO
+    cid,
+    debug,
+    silent,
+  } = argv
+
+  const ctx = await runPropagateTask({
     apmOptions,
     cid,
     debug,
     silent,
   })
-
-  const ctx = await task.run()
 
   console.log(
     '\n',

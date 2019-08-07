@@ -1,20 +1,20 @@
-const path = require('path')
-const TaskList = require('listr')
-const chalk = require('chalk')
-const {
+import path from 'path'
+import TaskList from 'listr'
+import chalk from 'chalk'
+import IPFS from 'ipfs-api'
+import listrOpts from '@aragon/cli-utils/src/helpers/listr-options'
+//
+import {
   startIPFSDaemon,
   isIPFSCORS,
   setIPFSCORS,
   isIPFSRunning,
-} = require('../../helpers/ipfs-daemon')
+} from '../lib'
 
-const IPFS = require('ipfs-api')
-const listrOpts = require('@aragon/cli-utils/src/helpers/listr-options')
+export const command = 'start'
+export const describe = 'Start the daemon, configure CORS and pin the latest aragon artifacts.'
 
-exports.command = 'start'
-exports.describe = 'Start the IPFS daemon and configure it to work with Aragon.'
-
-exports.task = ({ apmOptions, silent, debug }) => {
+const runStartTask = ({ apmOptions, silent, debug }) => {
   return new TaskList(
     [
       {
@@ -64,13 +64,13 @@ exports.task = ({ apmOptions, silent, debug }) => {
       },
     ],
     listrOpts(silent, debug)
-  )
+  ).run()
 }
 
-exports.handler = async function({ reporter, apm: apmOptions }) {
-  const task = exports.task({ apmOptions })
-
-  const ctx = await task.run()
+export const handler = async argv => {
+  const { reporter, apm: apmOptions } = argv
+  
+  const ctx = runStartTask({ apmOptions })
 
   if (ctx.started) {
     reporter.info(

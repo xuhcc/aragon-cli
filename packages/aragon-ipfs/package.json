@@ -1,8 +1,11 @@
 {
-  "name": "@aragon/cli-utils",
-  "version": "0.0.7",
-  "description": "Common building blocks for CLI tools",
-  "main": "./dist/index.js",
+  "name": "aragon-ipfs",
+  "version": "0.0.1",
+  "description": "Command-line tools for IPFS",
+  "main": "./dist/lib.js",
+  "bin": {
+    "aragon-ipfs": "./dist/cli.js"
+  },
   "scripts": {
     "build": "babel src --out-dir dist --source-maps",
     "build:watch": "npm run build -- --watch"
@@ -12,8 +15,8 @@
     "url": "git+https://github.com/aragon/aragon-cli.git"
   },
   "keywords": [
+    "ipfs",
     "cli",
-    "utils",
     "aragon",
     "ethereum"
   ],
@@ -24,11 +27,28 @@
   },
   "homepage": "https://github.com/aragon/aragon-cli#readme",
   "dependencies": {
+    "@aragon/cli-utils": "^0.0.7",
+    "byte-size": "^5.0.1",
     "chalk": "^2.4.2",
-    "figures": "^3.0.0",
-    "listr-silent-renderer": "^1.1.1",
-    "listr-update-renderer": "^0.5.0",
-    "listr-verbose-renderer": "^0.5.0"
+    "execa": "^2.0.3",
+    "fs-extra": "^8.1.0",
+    "get-folder-size": "^2.0.1",
+    "go-platform": "^1.0.0",
+    "inquirer": "^6.5.0",
+    "internal-ip": "^4.3.0",
+    "ipfs-api": "^26.1.2",
+    "ipfs-http-client": "^33.1.1",
+    "listr": "^0.14.3",
+    "node-fetch": "^2.6.0",
+    "public-ip": "^3.1.0",
+    "stringify-tree": "^1.0.2",
+    "yargs": "^13.3.0"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.5.5",
+    "@babel/core": "^7.5.5",
+    "@babel/preset-env": "^7.5.5",
+    "core-js": "^3.1.4"
   },
   "engines": {
     "node": ">=8.0.0"
@@ -46,11 +66,5 @@
         }
       ]
     ]
-  },
-  "devDependencies": {
-    "@babel/cli": "^7.5.5",
-    "@babel/core": "^7.5.5",
-    "@babel/preset-env": "^7.5.5",
-    "core-js": "^3.2.0"
   }
 }

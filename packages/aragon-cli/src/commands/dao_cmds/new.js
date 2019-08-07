@@ -3,11 +3,10 @@ const { ensureWeb3 } = require('../../helpers/web3-fallback')
 const APM = require('@aragon/apm')
 const defaultAPMName = require('@aragon/cli-utils/src/helpers/default-apm')
 const chalk = require('chalk')
-const { getContract } = require('../../util')
+const { getContract } = require('@aragon/cli-utils')
 const getRepoTask = require('./utils/getRepoTask')
 const listrOpts = require('@aragon/cli-utils/src/helpers/listr-options')
-const startIPFS = require('../ipfs_cmds/start')
-const { getRecommendedGasLimit } = require('../../util')
+const { getRecommendedGasLimit } = require('@aragon/cli-utils')
 
 exports.BARE_TEMPLATE = defaultAPMName('bare-kit')
 exports.BARE_INSTANCE_FUNCTION = 'newBareInstance'
@@ -78,12 +77,6 @@ exports.task = async ({
 
   const tasks = new TaskList(
     [
-      {
-        // IPFS is a dependency of getRepoTask which uses IPFS to fetch the contract ABI
-        title: 'Check IPFS',
-        task: () => startIPFS.task({ apmOptions }),
-        enabled: () => ipfsCheck,
-      },
       {
         title: `Fetching template ${chalk.bold(template)}@${templateVersion}`,
         task: getRepoTask.task({

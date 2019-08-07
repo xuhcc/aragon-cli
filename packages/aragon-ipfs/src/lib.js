@@ -2,36 +2,39 @@ import chalk from 'chalk'
 import byteSize from 'byte-size'
 import { stringifyTree } from 'stringify-tree'
 import ipfsAPI from 'ipfs-http-client' // TODO: import only submodules?
+import oldIpfsAPI from 'ipfs-api'
 import fetch from 'node-fetch'
 import { readJson } from 'fs-extra'
 import { join as joinPath } from 'path'
 import { homedir } from 'os'
-import { isPortTaken } from '../../util'
+import { getBinary, isPortTaken } from '@aragon/cli-utils'
 import getFolderSize from 'get-folder-size'
 import url from 'url'
+import execa from 'execa'
+import goplatform from 'go-platform'
+import { existsSync } from 'fs'
+//
+import { FETCH_TIMEOUT_ERR, FETCH_TIMEOUT, IPFS_START_TIMEOUT, GATEWAYS } from './configuration'
 
-const FETCH_TIMEOUT = 20000 // 20s
-const FETCH_TIMEOUT_ERR = 'Request timed out'
-
-export async function ensureConnection(apiAddress) {
+export async function ensureConnection (apiAddress) {
   try {
     const client = connectToAPI(apiAddress)
     await client.id()
     return {
       client,
     }
-  } catch (e) {
+  } catch (error) {
     throw new Error(
       `Could not connect to the IPFS API at ${JSON.stringify(apiAddress)}`
     )
   }
 }
 
-export function connectToAPI(apiAddress) {
+export function connectToAPI (apiAddress) {
   return ipfsAPI(apiAddress)
 }
 
-export function parseAddressAsURL(address) {
+export function parseAddressAsURL (address) {
   const uri = new url.URL(address)
   return {
     protocol: uri.protocol.replace(':', ''),
@@ -46,7 +49,7 @@ export function parseAddressAsURL(address) {
  * @param {URL} apiAddress a `URL` object
  * @returns {boolean} true if it is running
  */
-export async function isDaemonRunning(apiAddress) {
+export async function isDaemonRunning (apiAddress) {
   const portTaken = await isPortTaken(apiAddress.port)
 
   if (!portTaken) {
@@ -63,7 +66,7 @@ export async function isDaemonRunning(apiAddress) {
   }
 }
 
-export async function getMerkleDAG(client, cid, opts = {}) {
+export async function getMerkleDAG (client, cid, opts = {}) {
   const merkleDAG = parseMerkleDAG(await client.object.get(cid))
   merkleDAG.cid = cid
 
@@ -85,10 +88,10 @@ export async function getMerkleDAG(client, cid, opts = {}) {
 
 // object.get returns an object of type DAGNode
 // https://github.com/ipld/js-ipld-dag-pb#dagnode-instance-methods-and-properties
-function parseMerkleDAG(dagNode) {
+function parseMerkleDAG (dagNode) {
   const parsed = dagNode.toJSON()
   // add relevant data
-  parsed.isDir = isDir(parsed.data)
+  parsed.isDir = isDirectory(parsed.data)
   // remove irrelevant data
   delete parsed.data
   if (!parsed.isDir) {
@@ -98,11 +101,11 @@ function parseMerkleDAG(dagNode) {
   return parsed
 }
 
-function isDir(data) {
+function isDirectory (data) {
   return data.length === 2 && data.toString() === '\u0008\u0001'
 }
 
-function stringifyMerkleDAGNode(merkleDAG) {
+function stringifyMerkleDAGNode (merkleDAG) {
   // ${merkleDAG.isDir ? '📁' : ''}
   const cid = merkleDAG.cid
   const name = merkleDAG.name || 'root'
@@ -113,7 +116,7 @@ function stringifyMerkleDAGNode(merkleDAG) {
   return [name, size, chalk.gray(cid)].join(delimiter)
 }
 
-export function stringifyMerkleDAG(merkleDAG) {
+export function stringifyMerkleDAG (merkleDAG) {
   return stringifyTree(
     merkleDAG,
     node => stringifyMerkleDAGNode(node),
@@ -121,7 +124,7 @@ export function stringifyMerkleDAG(merkleDAG) {
   )
 }
 
-export function extractCIDsFromMerkleDAG(merkleDAG, opts = {}) {
+export function extractCIDsFromMerkleDAG (merkleDAG, opts = {}) {
   const CIDs = []
   CIDs.push(merkleDAG.cid)
 
@@ -134,7 +137,7 @@ export function extractCIDsFromMerkleDAG(merkleDAG, opts = {}) {
   return CIDs
 }
 
-function timeout() {
+function timeout () {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       reject(FETCH_TIMEOUT_ERR)
@@ -142,17 +145,7 @@ function timeout() {
   })
 }
 
-const gateways = [
-  'https://ipfs.io/ipfs',
-  'https://ipfs.infura.io/ipfs',
-  'https://cloudflare-ipfs.com/ipfs',
-  'https://ipfs.eth.aragon.network/ipfs',
-  'https://ipfs.jes.xxx/ipfs',
-  'https://www.eternum.io/ipfs',
-  'https://ipfs.wa.hle.rs/ipfs',
-]
-
-async function queryCidAtGateway(gateway, cid) {
+async function queryCidAtGateway (gateway, cid) {
   try {
     await Promise.race([
       fetch(`${gateway}/${cid}`),
@@ -175,13 +168,13 @@ async function queryCidAtGateway(gateway, cid) {
   }
 }
 
-async function propagateFile(cid, logger) {
+async function propagateFile (cid, logger) {
   const results = await Promise.all(
-    gateways.map(gateway => queryCidAtGateway(gateway, cid))
+    GATEWAYS.map(gateway => queryCidAtGateway(gateway, cid))
   )
 
   const succeeded = results.filter(status => status.success).length
-  const failed = gateways.length - succeeded
+  const failed = GATEWAYS.length - succeeded
 
   logger(
     `Queried ${cid} at ${succeeded} gateways successfully, ${failed} failed.`
@@ -198,28 +191,28 @@ async function propagateFile(cid, logger) {
   }
 }
 
-export async function propagateFiles(CIDs, logger = () => {}) {
+export async function propagateFiles (CIDs, logger = () => { }) {
   const results = await Promise.all(CIDs.map(cid => propagateFile(cid, logger)))
   return {
-    gateways,
+    gateways: GATEWAYS,
     succeeded: results.reduce((prev, current) => prev + current.succeeded, 0),
     failed: results.reduce((prev, current) => prev + current.failed, 0),
     errors: results.reduce((prev, current) => [...prev, ...current.errors], []),
   }
 }
 
-export function getDefaultRepoPath() {
+export function getDefaultRepoPath () {
   const homedirPath = homedir()
   return joinPath(homedirPath, '.ipfs')
 }
 
-export async function getRepoVersion(repoLocation) {
+export async function getRepoVersion (repoLocation) {
   const versionFilePath = joinPath(repoLocation, 'version')
   const version = await readJson(versionFilePath)
   return version
 }
 
-export async function getRepoSize(repoLocation) {
+export async function getRepoSize (repoLocation) {
   return new Promise((resolve, reject) => {
     getFolderSize(repoLocation, (err, size) => {
       if (err) {
@@ -232,13 +225,13 @@ export async function getRepoSize(repoLocation) {
   })
 }
 
-export async function getRepoConfig(repoLocation) {
+export async function getRepoConfig (repoLocation) {
   const configFilePath = joinPath(repoLocation, 'config')
   const config = await readJson(configFilePath)
   return config
 }
 
-export function getPortsConfig(repoConfig) {
+export function getPortsConfig (repoConfig) {
   return {
     // default: "/ip4/127.0.0.1/tcp/5001"
     api: repoConfig.Addresses.API.split('/').pop(),
@@ -252,6 +245,120 @@ export function getPortsConfig(repoConfig) {
   }
 }
 
-export function getPeerIDConfig(repoConfig) {
+export function getPeerIDConfig (repoConfig) {
   return repoConfig.Identity.PeerID
 }
+
+const ensureIPFSInitialized = async () => {
+  if (!getBinary('ipfs')) {
+    throw new Error(
+      'IPFS is not installed. Use `aragon ipfs install` before proceeding.'
+    )
+  }
+
+  if (!existsSync(getDefaultRepoPath())) {
+    // We could use 'ipfs daemon --init' when https://github.com/ipfs/go-ipfs/issues/3913 is solved
+    await execa(getBinary('ipfs'), ['init'])
+  }
+}
+
+export const startIPFSDaemon = () => {
+  if (!getBinary('ipfs')) {
+    throw new Error(
+      'IPFS is not installed. Use `aragon ipfs install` before proceeding.'
+    )
+  }
+
+  let startOutput = ''
+
+  // We add a timeout as starting
+  const timeout = new Promise((resolve, reject) => {
+    setTimeout(() => {
+      reject(new Error(`Starting IPFS timed out:\n${startOutput}`))
+    }, IPFS_START_TIMEOUT)
+  })
+
+  const start = new Promise(async (resolve, reject) => {
+    await ensureIPFSInitialized()
+    const ipfsProc = execa(getBinary('ipfs'), ['daemon', '--migrate'])
+
+    ipfsProc.stdout.on('data', data => {
+      startOutput = `${startOutput}${data.toString()}\n`
+      if (data.toString().includes('Daemon is ready')) resolve()
+    })
+
+    ipfsProc.stderr.on('data', data => {
+      reject(new Error(`Starting IPFS failed: ${data.toString()}`))
+    })
+  })
+
+  return Promise.race([start, timeout])
+}
+
+let ipfsNode
+
+const IPFSCORS = [
+  {
+    key: 'API.HTTPHeaders.Access-Control-Allow-Origin',
+    value: ['*'],
+  },
+  {
+    key: 'API.HTTPHeaders.Access-Control-Allow-Methods',
+    value: ['PUT', 'GET', 'POST'],
+  },
+]
+
+export const isIPFSCORS = async ipfsRpc => {
+  if (!ipfsNode) ipfsNode = oldIpfsAPI(ipfsRpc)
+  const conf = await ipfsNode.config.get('API.HTTPHeaders')
+  const allowOrigin = IPFSCORS[0].key.split('.').pop()
+  const allowMethods = IPFSCORS[1].key.split('.').pop()
+  if (conf && conf[allowOrigin] && conf[allowMethods]) {
+    return true
+  } else {
+    throw new Error(`Please set the following flags in your IPFS node:
+    ${IPFSCORS.map(({ key, value }) => {
+      return `${key}: ${value}`
+    }).join('\n    ')}`)
+  }
+}
+
+export const setIPFSCORS = ipfsRpc => {
+  if (!ipfsNode) ipfsNode = oldIpfsAPI(ipfsRpc)
+  return Promise.all(
+    IPFSCORS.map(({ key, value }) => ipfsNode.config.set(key, value))
+  )
+}
+
+export const isIPFSRunning = async ipfsRpc => {
+  const portTaken = await isPortTaken(ipfsRpc.port)
+
+  if (portTaken) {
+    if (!ipfsNode) ipfsNode = oldIpfsAPI(ipfsRpc)
+
+    try {
+      // if port is taken, attempt to fetch the node id
+      // if this errors, we can assume the port is taken
+      // by a process other then the ipfs gateway
+      await ipfsNode.id()
+      return true
+    } catch (e) {
+      return false
+    }
+  }
+
+  return false
+}
+
+export const getPlatform = () => process.platform
+export const getArch = () => process.arch
+
+export const getPlatformForGO = () => goplatform.GOOS
+export const getArchForGO = () => goplatform.GOARCH
+
+export const isProject = dir => joinPath(dir, 'package.json')
+
+// https://github.com/ipfs/npm-go-ipfs/blob/master/link-ipfs.js#L8
+// https://github.com/ipfs/npm-go-ipfs#publish-a-new-version-of-this-module-with-exact-same-go-ipfs-version
+export const cleanVersion = version => version.replace(/-hacky[0-9]+/, '')
+export const getDistName = (version, os, arch) => `go-ipfs_v${version}_${os}-${arch}.tar.gz`

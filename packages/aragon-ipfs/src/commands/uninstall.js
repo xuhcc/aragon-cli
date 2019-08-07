@@ -2,18 +2,17 @@ import TaskList from 'listr'
 import execa from 'execa'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
-//
 import listrOpts from '@aragon/cli-utils/src/helpers/listr-options'
 import {
   getGlobalBinary,
   getLocalBinary,
   getNodePackageManager,
-} from '../../util'
+} from '@aragon/cli-utils'
 
-exports.command = 'uninstall'
-exports.describe = 'Uninstall the go-ipfs binaries.'
+export const command = 'uninstall'
+export const describe = 'Uninstall the go-ipfs binaries.'
 
-exports.builder = yargs => {
+export const builder = yargs => {
   return yargs
     .option('local', {
       description: 'Whether to uninstall IPFS from the project dependencies',
@@ -54,13 +53,14 @@ const runUninstallTask = ({ silent, debug, local }) => {
   ).run()
 }
 
-exports.handler = async function({
-  debug,
-  silent,
-  skipConfirmation,
-  local,
-  reporter,
-}) {
+export const handler = async argv => {
+  const {
+    debug,
+    silent,
+    skipConfirmation,
+    local,
+    reporter,
+  } = argv
   /**
    * Check if it's installed
    */

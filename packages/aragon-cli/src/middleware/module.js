@@ -1,6 +1,6 @@
 const path = require('path')
 const fs = require('fs-extra')
-const { findProjectRoot } = require('../util')
+const { findProjectRoot } = require('@aragon/cli-utils')
 
 module.exports = function moduleMiddleware(argv) {
   const runsInCwd = argv['_'] === 'init'

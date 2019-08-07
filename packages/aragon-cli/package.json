@@ -11,8 +11,6 @@
     "postinstall": "npm run clean-modules",
     "clean-modules": "del-cli './node_modules/**/.git'",
     "prepare": "npm run build",
-    "link": "npm link",
-    "unlink": "npm unlink",
     "compile-src": "babel src --out-dir dist --source-maps --copy-files",
     "extract-roles": "node scripts/extract-roles",
     "build": "npm run extract-roles && npm run compile-src",

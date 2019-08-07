@@ -3,9 +3,9 @@ import chalk from 'chalk'
 import publicIp from 'public-ip'
 import internalIp from 'internal-ip'
 import { existsSync } from 'fs'
-//
 import listrOpts from '@aragon/cli-utils/src/helpers/listr-options'
-import { getGlobalBinary, getLocalBinary } from '../../util'
+import { getGlobalBinary, getLocalBinary } from '@aragon/cli-utils'
+//
 import {
   getRepoVersion,
   getDefaultRepoPath,
@@ -14,15 +14,15 @@ import {
   getPeerIDConfig,
   isDaemonRunning,
   getRepoSize,
-} from '../../lib/ipfs'
-import { isIPFSCORS } from '../../helpers/ipfs-daemon'
+  isIPFSCORS
+} from '../lib'
 
-exports.command = 'status'
-exports.describe = 'Status of the IPFS installation & daemon.'
+export const command = 'status'
+export const describe = 'Show whether the daemon is running and other useful information.'
 
-exports.builder = yargs => {
+export const builder = yargs => {
   return yargs.option('repo-path', {
-    description: 'The location of the IPFS repository',
+    description: 'The location of the IPFS repo',
     default: getDefaultRepoPath(),
   })
 }
@@ -103,7 +103,9 @@ const runCheckTask = ({ silent, debug, repoPath }) => {
   ).run()
 }
 
-exports.handler = async function({ reporter, debug, silent, repoPath }) {
+export const handler = async argv => {
+  const { reporter, debug, silent, repoPath } = argv
+
   const {
     localBinPath,
     globalBinPath,
